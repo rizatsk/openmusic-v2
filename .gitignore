@@ -1,0 +1,4 @@
+*.zip
+node_modules
+OpenMusicAPIV2PostmanTest
+package-lock.json
