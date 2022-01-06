@@ -55,13 +55,18 @@ class PlaylistSongsHandler {
       const {id: playlistId} = request.params;
       const {id: owner} = request.auth.credentials;
 
-      const playlist = await this._playlistService.getPlaylists(owner);
+      const playlists = await this._playlistService.getPlaylistsForSong(playlistId, owner);
       const songs = await this._service.getPlaylistIdSongs(playlistId, owner);
 
       return {
         status: 'success',
         data: {
-          songs,
+          playlist: {
+            id: playlists.id,
+            name: playlists.name,
+            username: playlists.username,
+            songs,
+          },
         },
       };
     } catch (error) {

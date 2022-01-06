@@ -39,16 +39,16 @@ class PlaylistService {
     return result.rows.map(mapDBToModelPlaylists);
   }
 
-  async getPlaylistsForSong(owner) {
+  async getPlaylistsForSong(playlistId, owner) {
     const query = {
       text: `SELECT playlists.*, users.username FROM playlists
-      JOIN users ON playlists.owner = users.id
-      WHERE playlists.owner=$1`,
-      values: [owner],
+      LEFT JOIN users ON playlists.owner = users.id
+      WHERE playlists.id = $2 AND playlists.owner=$1`,
+      values: [owner, playlistId],
     };
     const result = await this._pool.query(query);
 
-    return result.rows;
+    return result.rows[0];
   }
 
   async deletePlaylistById(id) {
