@@ -1,7 +1,10 @@
 require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
+const path = require('path');
 const Jwt = require('@hapi/jwt');
+const Inert = require('@hapi/inert');
+const ClientError = require('./exceptions/ClientError');
 
 // albums
 const albums = require('./api/albums');
@@ -34,13 +37,33 @@ const playlistSongs = require('./api/playlistSongs');
 const PlaylistSongsService = require('./services/postgres/PlaylistSongsService');
 const PlaylistSongsValidator = require('./validator/playlistSongs');
 
+// Exports
+const _exports = require('./api/exports');
+const ProducerService = require('./services/rabbitmq/ProducerService');
+const ExportsValidator = require('./validator/exports');
+
+// Uploads
+const uploads = require('./api/uploads');
+const StorageService = require('./services/storage/StorageService');
+const UploadsValidator = require('./validator/uploads');
+
+// Album Likes
+const albumLikes = require('./api/albumLikes');
+const AlbumLikesService = require('./services/postgres/AlbumLikesService');
+
+// Cache
+const CacheService = require('./services/redis/CacheService');
+
 const init = async () => {
+  const cacheService = new CacheService();
   const albumsService = new AlbumsServices();
   const songsService = new SongsServices();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
   const playlistService = new PlaylistService();
   const playlistSongsService = new PlaylistSongsService(songsService, playlistService);
+  const storageService = new StorageService(path.resolve(__dirname, 'api/uploads/file/images'));
+  const albumLikesService = new AlbumLikesService(cacheService);
 
   const server = Hapi.server({
     port: process.env.PORT,
@@ -56,6 +79,9 @@ const init = async () => {
   await server.register([
     {
       plugin: Jwt,
+    },
+    {
+      plugin: Inert,
     },
   ]);
 
@@ -122,7 +148,48 @@ const init = async () => {
         validator: PlaylistSongsValidator,
       },
     },
+    {
+      plugin: _exports,
+      options: {
+        ProducerService,
+        playlistService,
+        validator: ExportsValidator,
+      },
+    },
+    {
+      plugin: uploads,
+      options: {
+        service: storageService,
+        albumsService,
+        validator: UploadsValidator,
+      },
+    },
+    {
+      plugin: albumLikes,
+      options: {
+        service: albumLikesService,
+        albumsService,
+      },
+    },
   ]);
+
+  server.ext('onPreResponse', (request, h) => {
+    // mendapatkan konteks response dari request
+    const {response} = request;
+
+    if (response instanceof ClientError) {
+      // membuat response baru dari response toolkit sesuai kebutuhan error handling
+      const newResponse = h.response({
+        status: 'fail',
+        message: response.message,
+      });
+      newResponse.code(response.statusCode);
+      return newResponse;
+    }
+
+    // jika bukan ClientError, lanjutkan dengan response sebelumnya (tanpa terintervensi)
+    return response.continue || response;
+  });
 
   await server.start();
   console.log(`Server berjalan pada ${server.info.uri}`);

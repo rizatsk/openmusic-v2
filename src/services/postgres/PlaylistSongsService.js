@@ -36,7 +36,7 @@ class PlaylistSongsService {
     await this._playlistService.verifyPlaylistOwner(playlistId, owner);
 
     const query = {
-      text: `SELECT playlist_songs.*, songs.id, songs.title, songs.performer FROM playlist_songs
+      text: `SELECT songs.id, songs.title, songs.performer FROM playlist_songs
       JOIN songs ON songs.id = playlist_songs.song_id 
       WHERE playlist_songs.playlist_id = $1`,
       values: [playlistId],
@@ -44,7 +44,7 @@ class PlaylistSongsService {
 
     const result = await this._pool.query(query);
 
-    return result.rows.map(mapDBToModelPlaylistSongs);
+    return result.rows;
   }
 
   async deletePlaylistIdSong(playlistId, songId, owner) {
