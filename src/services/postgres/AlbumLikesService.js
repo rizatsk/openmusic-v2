@@ -26,21 +26,14 @@ class AlbumLikesServices {
   }
 
   async getUserAlbumLikes(albumId) {
-    try {
-      const result = await this._cacheService.get(`albums:${albumId}`);
-      return JSON.parse(result);
-    } catch (error) {
-      const query = {
-        text: 'SELECT * FROM user_album_likes WHERE album_id = $1',
-        values: [albumId],
-      };
+    const query = {
+      text: 'SELECT * FROM user_album_likes WHERE album_id = $1',
+      values: [albumId],
+    };
 
-      const result = await this._pool.query(query);
+    const result = await this._pool.query(query);
 
-      await this._cacheService.set(`albums:${albumId}`, JSON.stringify(result.rowCount));
-
-      return result.rowCount;
-    }
+    return result.rowCount;
   }
 
   async cekUserAlbumLike(userId, albumId) {

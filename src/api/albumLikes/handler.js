@@ -1,7 +1,8 @@
 class AlbumLikesHandler {
-  constructor(service, albumsService) {
+  constructor(service, albumsService, cacheService) {
     this._service = service;
     this._albumsService = albumsService;
+    this._cacheService = cacheService;
 
     this.postAlbumLikesHandler = this.postAlbumLikesHandler.bind(this); // bind untuk mengikat this agar isinya tetap sama tidak berubah
     this.getAlbumLikesHandler = this.getAlbumLikesHandler.bind(this);
@@ -22,16 +23,32 @@ class AlbumLikesHandler {
     return response;
   }
 
-  async getAlbumLikesHandler(request) {
+  async getAlbumLikesHandler(request, h) {
     const {id: albumId} = request.params;
+    try {
+      const AlbumLikes = await this._cacheService.get(`albums:${albumId}`);
+      const albumLikes = JSON.parse(AlbumLikes);
+      const response = h.response({
+        status: 'success',
+        data: {
+          likes: albumLikes,
+        },
+      });
+      response.header('X-Data-Source', 'cache');
+      return response;
+    } catch (error) {
+      const albumLikes = await this._service.getUserAlbumLikes(albumId);
 
-    const albumLikes = await this._service.getUserAlbumLikes(albumId);
-    return {
-      status: 'success',
-      data: {
-        likes: albumLikes,
-      },
-    };
+      await this._cacheService.set(`albums:${albumId}`, JSON.stringify(albumLikes));
+
+      const response = h.response({
+        status: 'success',
+        data: {
+          likes: albumLikes,
+        },
+      });
+      return response;
+    }
   }
 }
 
